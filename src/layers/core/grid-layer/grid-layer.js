@@ -18,202 +18,202 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-import {CompositeLayer} from '../../../lib';
+import { CompositeLayer } from '../../../lib';
 import GridCellLayer from '../grid-cell-layer/grid-cell-layer';
 
-import {pointToDensityGridData} from './grid-aggregator';
-import {linearScale, quantizeScale} from '../../../utils/scale-utils';
-import {defaultColorRange} from '../../../utils/color-utils';
+import { pointToDensityGridData } from './grid-aggregator';
+import { linearScale, quantizeScale } from '../../../utils/scale-utils';
+import { defaultColorRange } from '../../../utils/color-utils';
 
 import BinSorter from '../../../utils/bin-sorter';
 
 const defaultProps = {
-  cellSize: 1000,
-  colorRange: defaultColorRange,
-  colorDomain: null,
-  elevationRange: [0, 1000],
-  elevationDomain: null,
-  elevationScale: 1,
-  lowerPercentile: 0,
-  upperPercentile: 100,
-  coverage: 1,
-  getPosition: x => x.position,
-  getColorValue: points => points.length,
-  extruded: false,
-  fp64: false,
-  // Optional settings for 'lighting' shader module
-  lightSettings: {
-    lightsPosition: [-122.45, 37.75, 8000, -122.0, 38.00, 5000],
-    ambientRatio: 0.05,
-    diffuseRatio: 0.6,
-    specularRatio: 0.8,
-    lightsStrength: [2.0, 0.0, 0.0, 0.0],
-    numberOfLights: 2
-  }
+    cellSize: 1000,
+    colorRange: defaultColorRange,
+    colorDomain: null,
+    elevationRange: [0, 1000],
+    elevationDomain: null,
+    elevationScale: 1,
+    lowerPercentile: 0,
+    upperPercentile: 100,
+    coverage: 1,
+    getPosition: x => x.position,
+    getColorValue: counts => counts,
+    extruded: false,
+    fp64: false,
+    // Optional settings for 'lighting' shader module
+    lightSettings: {
+        lightsPosition: [-122.45, 37.75, 8000, -122.0, 38.00, 5000],
+        ambientRatio: 0.05,
+        diffuseRatio: 0.6,
+        specularRatio: 0.8,
+        lightsStrength: [2.0, 0.0, 0.0, 0.0],
+        numberOfLights: 2
+    }
 };
 
 export default class GridLayer extends CompositeLayer {
-  initializeState() {
-    this.state = {
-      layerData: [],
-      sortedBins: null,
-      valueDomain: null
-    };
-  }
-
-  updateState({oldProps, props, changeFlags}) {
-    if (changeFlags.dataChanged || this.needsReProjectPoints(oldProps, props)) {
-      // project data into hexagons, and get sortedBins
-      this.getLayerData();
-      this.getSortedBins();
-
-      // this needs sortedBins to be set
-      this.getValueDomain();
-    } else if (this.needsReSortBins(oldProps, props)) {
-
-      this.getSortedBins();
-      this.getValueDomain();
-
-    } else if (this.needsRecalculateColorDomain(oldProps, props)) {
-
-      this.getValueDomain();
+    initializeState() {
+        this.state = {
+            layerData: [],
+            sortedBins: null,
+            valueDomain: null
+        };
     }
-  }
 
-  needsReProjectPoints(oldProps, props) {
-    return oldProps.cellSize !== props.cellSize;
-  }
+    updateState({ oldProps, props, changeFlags }) {
+        if (changeFlags.dataChanged || this.needsReProjectPoints(oldProps, props)) {
+            // project data into hexagons, and get sortedBins
+            this.getLayerData();
+            this.getSortedBins();
 
-  needsRecalculateColorDomain(oldProps, props) {
-    return oldProps.lowerPercentile !== props.lowerPercentile ||
-      oldProps.upperPercentile !== props.upperPercentile;
-  }
+            // this needs sortedBins to be set
+            this.getValueDomain();
+        } else if (this.needsReSortBins(oldProps, props)) {
 
-  needsReSortBins(oldProps, props) {
-    return oldProps.getColorValue !== props.getColorValue;
-  }
+            this.getSortedBins();
+            this.getValueDomain();
 
-  getLayerData() {
-    const {data, cellSize, getPosition} = this.props;
-    const {layerData} = pointToDensityGridData(data, cellSize, getPosition);
+        } else if (this.needsRecalculateColorDomain(oldProps, props)) {
 
-    this.setState({layerData});
-  }
+            this.getValueDomain();
+        }
+    }
 
-  getSortedBins() {
-    const sortedBins = new BinSorter(this.state.layerData || [], this.props.getColorValue);
-    this.setState({sortedBins});
-  }
+    needsReProjectPoints(oldProps, props) {
+        return oldProps.cellSize !== props.cellSize;
+    }
 
-  getValueDomain() {
-    const {lowerPercentile, upperPercentile} = this.props;
+    needsRecalculateColorDomain(oldProps, props) {
+        return oldProps.lowerPercentile !== props.lowerPercentile ||
+            oldProps.upperPercentile !== props.upperPercentile;
+    }
 
-    this.state.valueDomain = this.state.sortedBins
-      .getValueRange([lowerPercentile, upperPercentile]);
-  }
+    needsReSortBins(oldProps, props) {
+        return oldProps.getColorValue !== props.getColorValue;
+    }
 
-  getPickingInfo({info}) {
-    const pickedCell = info.picked && info.index > -1 ?
-      this.state.layerData[info.index] : null;
+    getLayerData() {
+        const { data, cellSize, getPosition } = this.props;
+        const { layerData } = data;
 
-    return Object.assign(info, {
-      picked: Boolean(pickedCell),
-      // override object with picked cell
-      object: pickedCell
-    });
-  }
+        this.setState({ layerData });
+    }
 
-  getUpdateTriggers() {
-    return {
-      getColor: {
-        colorRange: this.props.colorRange,
-        colorDomain: this.props.colorDomain,
-        getColorValue: this.props.getColorValue,
-        lowerPercentile: this.props.lowerPercentile,
-        upperPercentile: this.props.upperPercentile
-      },
-      getElevation: {
-        elevationRange: this.props.elevationRange,
-        elevationDomain: this.props.elevationDomain
-      }
-    };
-  }
+    getSortedBins() {
+        const sortedBins = new BinSorter(this.state.layerData || [], this.props.getColorValue);
+        this.setState({ sortedBins });
+    }
 
-  _onGetSublayerColor(cell) {
-    const {colorRange} = this.props;
-    const {valueDomain, sortedBins} = this.state;
-    const value = sortedBins.binMap[cell.index] && sortedBins.binMap[cell.index].value;
+    getValueDomain() {
+        const { lowerPercentile, upperPercentile } = this.props;
 
-    const colorDomain = this.props.colorDomain || valueDomain;
-    const color = quantizeScale(colorDomain, colorRange, value);
+        this.state.valueDomain = this.state.sortedBins
+            .getValueRange([lowerPercentile, upperPercentile]);
+    }
 
-    // if cell value is outside domain, set alpha to 0
-    const alpha = value >= valueDomain[0] && value <= valueDomain[1] ?
-      (Number.isFinite(color[3]) ? color[3] : 255) : 0;
+    getPickingInfo({ info }) {
+        const pickedCell = info.picked && info.index > -1 ?
+            this.state.layerData[info.index] : null;
 
-    // add final alpha to color
-    color[3] = alpha;
+        return Object.assign(info, {
+            picked: Boolean(pickedCell),
+            // override object with picked cell
+            object: pickedCell
+        });
+    }
 
-    return color;
-  }
+    getUpdateTriggers() {
+        return {
+            getColor: {
+                colorRange: this.props.colorRange,
+                colorDomain: this.props.colorDomain,
+                getColorValue: this.props.getColorValue,
+                lowerPercentile: this.props.lowerPercentile,
+                upperPercentile: this.props.upperPercentile
+            },
+            getElevation: {
+                elevationRange: this.props.elevationRange,
+                elevationDomain: this.props.elevationDomain
+            }
+        };
+    }
 
-  _onGetSublayerElevation(cell) {
-    const {elevationDomain, elevationRange} = this.props;
-    const {sortedBins} = this.state;
+    _onGetSublayerColor(cell) {
+        const { colorRange } = this.props;
+        const { valueDomain, sortedBins } = this.state;
+        const value = sortedBins.binMap[cell.index] && sortedBins.binMap[cell.index].value;
 
-    // elevation is based on counts, it is not affected by percentile
-    const domain = elevationDomain || [0, sortedBins.maxCount];
-    return linearScale(domain, elevationRange, cell.points.length);
-  }
+        const colorDomain = this.props.colorDomain || valueDomain;
+        const color = quantizeScale(colorDomain, colorRange, value);
 
-  getSubLayerProps() {
-    // for subclassing, override this method to return
-    // customized sub layer props
-    const {id, elevationScale, fp64, extruded, cellSize, coverage, lightSettings} = this.props;
+        // if cell value is outside domain, set alpha to 0
+        const alpha = value >= valueDomain[0] && value <= valueDomain[1] ?
+            (Number.isFinite(color[3]) ? color[3] : 255) : 0;
 
-    // base layer props
-    const {opacity, pickable, visible, getPolygonOffset} = this.props;
+        // add final alpha to color
+        color[3] = alpha;
 
-    // viewport props
-    const {positionOrigin, projectionMode, modelMatrix} = this.props;
+        return cell.color;
+    }
 
-    // return props to the sublayer constructor
-    return {
-      id: `${id}-grid-cell`,
-      data: this.state.layerData,
-      cellSize,
-      coverage,
-      lightSettings,
-      elevationScale,
-      extruded,
-      fp64,
-      opacity,
-      pickable,
-      visible,
-      getPolygonOffset,
-      projectionMode,
-      positionOrigin,
-      modelMatrix,
-      getColor: this._onGetSublayerColor.bind(this),
-      getElevation: this._onGetSublayerElevation.bind(this),
-      getPosition: d => d.position,
-      updateTriggers: this.getUpdateTriggers()
-    };
-  }
+    _onGetSublayerElevation(cell) {
+        const { elevationDomain, elevationRange } = this.props;
+        const { sortedBins } = this.state;
 
-  getSubLayerClass() {
-    // for subclassing, override this method to return
-    // customized sub layer class
-    return GridCellLayer;
-  }
+        // elevation is based on counts, it is not affected by percentile
+        const domain = elevationDomain || [0, sortedBins.maxCount];
+        return linearScale(domain, elevationRange, cell.count);
+    }
 
-  renderLayers() {
-    const SubLayerClass = this.getSubLayerClass();
+    getSubLayerProps() {
+        // for subclassing, override this method to return
+        // customized sub layer props
+        const { id, elevationScale, fp64, extruded, cellSize, coverage, lightSettings } = this.props;
 
-    return new SubLayerClass(
-      this.getSubLayerProps()
-    );
-  }
+        // base layer props
+        const { opacity, pickable, visible, getPolygonOffset } = this.props;
+
+        // viewport props
+        const { positionOrigin, projectionMode, modelMatrix } = this.props;
+
+        // return props to the sublayer constructor
+        return {
+            id: `${id}-grid-cell`,
+            data: this.state.layerData,
+            cellSize,
+            coverage,
+            lightSettings,
+            elevationScale,
+            extruded,
+            fp64,
+            opacity,
+            pickable,
+            visible,
+            getPolygonOffset,
+            projectionMode,
+            positionOrigin,
+            modelMatrix,
+            getColor: this._onGetSublayerColor.bind(this),
+            getElevation: this._onGetSublayerElevation.bind(this),
+            getPosition: d => d.position,
+            updateTriggers: this.getUpdateTriggers()
+        };
+    }
+
+    getSubLayerClass() {
+        // for subclassing, override this method to return
+        // customized sub layer class
+        return GridCellLayer;
+    }
+
+    renderLayers() {
+        const SubLayerClass = this.getSubLayerClass();
+
+        return new SubLayerClass(
+            this.getSubLayerProps()
+        );
+    }
 }
 
 GridLayer.layerName = 'GridLayer';

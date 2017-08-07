@@ -22,65 +22,65 @@
 // by default it returns the number of points
 // this is where to pass in a function to color the bins by
 // avg/mean/max of specific value of the point
-const defaultGetValue = points => points.length;
+const defaultGetValue = count => count;
 
 export default class BinSorter {
-  constructor(bins = [], getValue = defaultGetValue) {
-    this.sortedBins = this.getSortedBins(bins, getValue);
-    this.maxCount = this.getMaxCount();
-    this.binMap = this.getBinMap();
-  }
-
-  /**
-   * Get an array of object with sorted values and index of bins
-   * @param {Array} bins
-   * @param {Function} getValue
-   * @return {Array} array of values and index lookup
-   */
-  getSortedBins(bins, getValue) {
-    return bins
-      .map((h, i) => ({
-        i: Number.isFinite(h.index) ? h.index : i,
-        value: getValue(h.points),
-        counts: h.points.length
-      }))
-      .sort((a, b) => a.value - b.value);
-  }
-
-  /**
-   * Get range of values of all bins
-   * @param {Number[]} range
-   * @param {Number} range[0] - lower bound
-   * @param {Number} range[1] - upper bound
-   * @return {Array} array of new value range
-   */
-  getValueRange([lower, upper]) {
-    const len = this.sortedBins.length;
-    if (!len) {
-      return [0, 0];
+    constructor(bins = [], getValue = defaultGetValue) {
+        this.sortedBins = this.getSortedBins(bins, getValue);
+        this.maxCount = this.getMaxCount();
+        this.binMap = this.getBinMap();
     }
-    const lowerIdx = Math.ceil(lower / 100 * (len - 1));
-    const upperIdx = Math.floor(upper / 100 * (len - 1));
 
-    return [this.sortedBins[lowerIdx].value, this.sortedBins[upperIdx].value];
-  }
+    /**
+     * Get an array of object with sorted values and index of bins
+     * @param {Array} bins
+     * @param {Function} getValue
+     * @return {Array} array of values and index lookup
+     */
+    getSortedBins(bins, getValue) {
+        return bins
+            .map((h, i) => ({
+                i: Number.isFinite(h.index) ? h.index : i,
+                value: getValue(h.count),
+                counts: h.count
+            }))
+            .sort((a, b) => a.value - b.value);
+    }
 
-  /**
-   * Get ths max count of all bins
-   * @return {Number | Boolean} max count
-   */
-  getMaxCount() {
-    return Math.max.apply(null, this.sortedBins.map(b => b.counts));
-  }
+    /**
+     * Get range of values of all bins
+     * @param {Number[]} range
+     * @param {Number} range[0] - lower bound
+     * @param {Number} range[1] - upper bound
+     * @return {Array} array of new value range
+     */
+    getValueRange([lower, upper]) {
+        const len = this.sortedBins.length;
+        if (!len) {
+            return [0, 0];
+        }
+        const lowerIdx = Math.ceil(lower / 100 * (len - 1));
+        const upperIdx = Math.floor(upper / 100 * (len - 1));
 
-  /**
-   * Get a mapping from cell/hexagon index to sorted bin
-   * This is used to retrieve bin value for color calculation
-   * @return {Object} bin index to sortedBins
-   */
-  getBinMap() {
-    return this.sortedBins.reduce((mapper, curr) => Object.assign(mapper, {
-      [curr.i]: curr
-    }), {});
-  }
+        return [this.sortedBins[lowerIdx].value, this.sortedBins[upperIdx].value];
+    }
+
+    /**
+     * Get ths max count of all bins
+     * @return {Number | Boolean} max count
+     */
+    getMaxCount() {
+        return Math.max.apply(null, this.sortedBins.map(b => b.counts));
+    }
+
+    /**
+     * Get a mapping from cell/hexagon index to sorted bin
+     * This is used to retrieve bin value for color calculation
+     * @return {Object} bin index to sortedBins
+     */
+    getBinMap() {
+        return this.sortedBins.reduce((mapper, curr) => Object.assign(mapper, {
+            [curr.i]: curr
+        }), {});
+    }
 }
